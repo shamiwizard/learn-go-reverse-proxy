@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"maps"
 )
 
 const ServerAddress = "http://localhost:2020"
@@ -88,15 +89,11 @@ func copyCookies(r, newRequest *http.Request) {
 }
 
 func copyHeaders(originalHeader, newHeader http.Header) {
-	clonedHeader := originalHeader.Clone()
-
-	if clonedHeader == nil {
+	if originalHeader == nil {
 		return
 	}
 
-	log.Print(clonedHeader)
-
-	newHeader = clonedHeader
+	maps.Copy(newHeader, originalHeader)
 }
 
 func setForwardHeaders(originalRequest, newRequest *http.Request) {
