@@ -113,3 +113,4 @@ func setForwardHeaders(originalRequest, newRequest *http.Request) {
 
 	newRequest.Header.Set("X-Forwarded-Host", originalRequest.Host)
 }
+
