@@ -7,13 +7,9 @@ import (
 //	"io"
 )
 
-var routes Routes
-
 type stringSlice []string
 
-type Routes struct {
-	Routes map[string]stringSlice `yaml:"routes"`
-}
+var routes map[string]stringSlice
 
 func init() {
 	loadRoutes()
@@ -28,9 +24,9 @@ func (r *stringSlice) UnmarshalYAML(value *yaml.Node) error {
 		return err
 	}
 
-	var multy []string
-	if err = value.Decode(&multy); err == nil {
-		*r = multy
+	var multi []string
+	if err = value.Decode(&multi); err == nil {
+		*r = multi
 		return err
 	}
 
