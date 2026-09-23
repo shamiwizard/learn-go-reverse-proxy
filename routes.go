@@ -4,7 +4,9 @@ import (
 	"gopkg.in/yaml.v3"
 	"os"
 	"fmt"
-//	"io"
+	"maps"
+	"slices"
+	"regexp"
 )
 
 type stringSlice []string
@@ -51,12 +53,34 @@ func loadRoutes() {
 	}
 }
 
-func target(path string) ([]string, error) {
-	paths := routes.Routes[path]
-
-	if len(paths) == 0 {
-		return paths, fmt.Errorf("no paths are set for such target")
+func matchRoute(path string) string {
+	if _, ok := routes[path]; ok {
+		return path
 	}
 
-	return paths, nil
+	keys := slices.Sorted(maps.Keys(routes))
+
+	result := keys[0]
+	var re *regexp.Regexp
+	var err error
+
+	for _, v := range keys {
+		re, err = regexp.Compile(fmt.Sprint("(^", regexp.QuoteMeta(v), ")"))
+
+		if err != nil {
+			break
+		}
+
+		if re.MatchString(path) {
+			result = v
+		}
+	}
+
+	return result
 }
+
+func targets(path string) ([]string) {
+	return routes[matchRoute(path)]
+}
+
+
