@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"regexp"
+	"strings"
 )
+
+var defaultRoute string
 
 type stringSlice []string
 
@@ -53,34 +55,25 @@ func loadRoutes() {
 	}
 }
 
-func matchRoute(path string) string {
+func matchPath(path string) string {
 	if _, ok := routes[path]; ok {
 		return path
 	}
 
-	keys := slices.Sorted(maps.Keys(routes))
+	rs := slices.SortedFunc(maps.Keys(routes), func(a, b string) int {
+		return len(b) - len(a)
+	})
 
-	result := keys[0]
-	var re *regexp.Regexp
-	var err error
-
-	for _, v := range keys {
-		re, err = regexp.Compile(fmt.Sprint("(^", regexp.QuoteMeta(v), ")"))
-
-		if err != nil {
-			break
-		}
-
-		if re.MatchString(path) {
-			result = v
+	for _, route := range rs {
+		if strings.HasPrefix(path, route) {
+			return route
 		}
 	}
 
-	return result
+	return defaultRoute
 }
 
 func targets(path string) ([]string) {
-	return routes[matchRoute(path)]
+	return routes[matchPath(path)]
 }
-
 
