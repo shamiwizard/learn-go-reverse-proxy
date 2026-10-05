@@ -9,14 +9,17 @@ import (
 	"strings"
 )
 
+var configPath string = "./config/hosts.yml"
+
 var defaultRoute string
 
 type stringSlice []string
 
 var routes map[string]stringSlice
 
-func init() {
+func main() {
 	loadRoutes()
+	setDefaultRoute()
 }
 
 func (r *stringSlice) UnmarshalYAML(value *yaml.Node) error {
@@ -38,7 +41,7 @@ func (r *stringSlice) UnmarshalYAML(value *yaml.Node) error {
 }
 
 func loadRoutes() {
-	file, err := os.Open("./config/hosts.yml")
+	file, err := os.Open(configPath)
 
 	if err != nil {
 		panic("No hosts file is present")
@@ -53,6 +56,17 @@ func loadRoutes() {
 	if err != nil {
 		fmt.Print("Something went wrong", err.Error())
 	}
+}
+
+func setDefaultRoute() {
+	v, ok := routes["defaultRoute"]
+	
+	if !ok || v[0] == "" {
+		panic(fmt.Sprintln("No hosts file is present.", "Set defaultRoute in", configPath, "file."))
+	} 
+
+	delete(routes, "defaultRoute")
+	defaultRoute = v[0]
 }
 
 func matchPath(path string) string {
