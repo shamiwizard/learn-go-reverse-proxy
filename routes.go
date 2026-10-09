@@ -13,26 +13,27 @@ var configPath string = "./config/hosts.yml"
 
 var defaultRoute string
 
-type stringSlice []string
-
 var routes map[string]stringSlice
 
-func main() {
+type stringSlice []string
+
+func init() {
 	loadRoutes()
 	setDefaultRoute()
+	normalizeRoutes()
 }
 
-func (r *stringSlice) UnmarshalYAML(value *yaml.Node) error {
+func (r *stringSlice) UnmarshalYAML(node *yaml.Node) error {
 	var err error
 	
 	var single string
-	if err = value.Decode(&single); err == nil {
+	if err = node.Decode(&single); err == nil {
 		*r = []string{single}
 		return err
 	}
 
 	var multi []string
-	if err = value.Decode(&multi); err == nil {
+	if err = node.Decode(&multi); err == nil {
 		*r = multi
 		return err
 	}
@@ -59,14 +60,44 @@ func loadRoutes() {
 }
 
 func setDefaultRoute() {
-	v, ok := routes["defaultRoute"]
+	v, ok := routes["default_route"]
 	
 	if !ok || v[0] == "" {
-		panic(fmt.Sprintln("No hosts file is present.", "Set defaultRoute in", configPath, "file."))
+		panic(fmt.Sprintln("No default route is set.", "Set default_route in", configPath, "file."))
 	} 
 
-	delete(routes, "defaultRoute")
+	delete(routes, "default_route")
 	defaultRoute = v[0]
+}
+
+func normalizeRoutes() {
+	for k, v := range routes {
+		normalizedKey := normalizeRoute(k)
+
+		if normalizedKey != k {
+			routes[normalizedKey] = v
+			delete(routes, k)
+		}
+	}
+}
+
+func normalizeRoute(route string) string {
+	hasSuffix := strings.HasSuffix(route, "/")
+	hasPrefix := strings.HasPrefix(route, "/")
+
+	if hasPrefix && hasSuffix {
+		return route
+	}
+
+	if !hasPrefix {
+		route = "/" + route
+	}
+
+	if !hasSuffix {
+		route += "/"
+	}
+
+	return route
 }
 
 func matchPath(path string) string {
