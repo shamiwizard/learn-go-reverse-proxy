@@ -110,7 +110,7 @@ func matchPath(path string) string {
 	})
 
 	for _, route := range rs {
-		if strings.HasPrefix(path, route) {
+		if strings.HasPrefix(path + "/", route) {
 			return route
 		}
 	}
