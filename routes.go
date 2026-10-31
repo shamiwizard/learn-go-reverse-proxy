@@ -7,6 +7,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 )
 
 var configPath string = "./config/hosts.yml"
@@ -16,6 +17,13 @@ var defaultRoute string
 var routes map[string]stringSlice
 
 type stringSlice []string
+
+type container struct {
+	mu sync.Mutex
+	counter map[string]int
+}
+
+var con container = container{ counter: make(map[string]int) }
 
 func init() {
 	loadRoutes()
@@ -39,6 +47,25 @@ func (r *stringSlice) UnmarshalYAML(node *yaml.Node) error {
 	}
 
 	return fmt.Errorf("value must be string or []string")
+}
+
+func (c *container) loadAndIncr(route string) int {
+	c.mu.Lock()
+
+	defer c.mu.Unlock()
+
+	if _, ok := c.counter[route]; !ok {
+		c.counter[route] = 0
+	}
+
+	i := c.counter[route]
+	c.counter[route]++
+
+	if c.counter[route] >= len(routes[route]) {
+		c.counter[route] = 0
+	}
+
+	return i
 }
 
 func loadRoutes() {
@@ -118,7 +145,9 @@ func matchPath(path string) string {
 	return defaultRoute
 }
 
-func targets(path string) ([]string) {
-	return routes[matchPath(path)]
+func target(path string) string {
+	route := matchPath(path)
+
+	return routes[route][con.loadAndIncr(route)]
 }
 
