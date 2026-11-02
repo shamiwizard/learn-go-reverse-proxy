@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"net"
 	"net/http"
-	"maps"
 )
 
 const ServerAddress = "http://localhost:2020"
 
-type requestResponder struct{}
+type requestResponder struct {
+	routes *routes
+}
 
 type flushWriter struct {
 	w http.ResponseWriter
@@ -29,7 +31,7 @@ func (fw flushWriter) Write(p []byte) (int, error) {
 }
 
 func (rr *requestResponder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	response, err := handleRequest(r)
+	response, err := handleRequest(r, rr.routes)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
@@ -49,8 +51,11 @@ func (rr *requestResponder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	io.Copy(fw, response.Body)
 }
 
-func handleRequest(r *http.Request) (*http.Response, error) {
-	newRequest, err := http.NewRequest(r.Method, fmt.Sprint(ServerAddress, r.URL.String()), r.Body)
+func handleRequest(r *http.Request, rs *routes) (*http.Response, error) {
+	t := rs.target(r.URL.String())
+	newRequest, err := http.NewRequest(r.Method, fmt.Sprint(t, r.URL.String()), r.Body)
+
+	fmt.Println(newRequest.URL.String())
 
 	if err != nil {
 		return nil, err
@@ -113,4 +118,3 @@ func setForwardHeaders(originalRequest, newRequest *http.Request) {
 
 	newRequest.Header.Set("X-Forwarded-Host", originalRequest.Host)
 }
-

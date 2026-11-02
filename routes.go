@@ -1,10 +1,10 @@
 package main
 
 import (
-	"gopkg.in/yaml.v3"
-	"os"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"maps"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -12,28 +12,23 @@ import (
 
 var configPath string = "./config/hosts.yml"
 
-var defaultRoute string
-
-var routes map[string]stringSlice
-
 type stringSlice []string
 
+type routes struct {
+	routes       map[string]stringSlice
+	defaultRoute string
+}
+
 type container struct {
-	mu sync.Mutex
+	mu      sync.Mutex
 	counter map[string]int
 }
 
-var con container = container{ counter: make(map[string]int) }
-
-func init() {
-	loadRoutes()
-	setDefaultRoute()
-	normalizeRoutes()
-}
+var con container = container{counter: make(map[string]int)}
 
 func (r *stringSlice) UnmarshalYAML(node *yaml.Node) error {
 	var err error
-	
+
 	var single string
 	if err = node.Decode(&single); err == nil {
 		*r = []string{single}
@@ -49,7 +44,7 @@ func (r *stringSlice) UnmarshalYAML(node *yaml.Node) error {
 	return fmt.Errorf("value must be string or []string")
 }
 
-func (c *container) loadAndIncr(route string) int {
+func (c *container) loadAndInc(route string, rs *routes) int {
 	c.mu.Lock()
 
 	defer c.mu.Unlock()
@@ -61,14 +56,14 @@ func (c *container) loadAndIncr(route string) int {
 	i := c.counter[route]
 	c.counter[route]++
 
-	if c.counter[route] >= len(routes[route]) {
+	if c.counter[route] >= len(rs.routes[route]) {
 		c.counter[route] = 0
 	}
 
 	return i
 }
 
-func loadRoutes() {
+func (rs *routes) load() {
 	file, err := os.Open(configPath)
 
 	if err != nil {
@@ -79,31 +74,32 @@ func loadRoutes() {
 
 	decoder := yaml.NewDecoder(file)
 
-	err = decoder.Decode(&routes)
+	err = decoder.Decode(&rs.routes)
 
 	if err != nil {
 		fmt.Print("Something went wrong", err.Error())
 	}
 }
 
-func setDefaultRoute() {
-	v, ok := routes["default_route"]
-	
+func (rs *routes) setDefault() { // TODO: Change it to config method
+	v, ok := rs.routes["default_route"]
+
 	if !ok || v[0] == "" {
 		panic(fmt.Sprintln("No default route is set.", "Set default_route in", configPath, "file."))
-	} 
+	}
 
-	delete(routes, "default_route")
-	defaultRoute = v[0]
+	delete(rs.routes, "default_route")
+
+	rs.defaultRoute = v[0]
 }
 
-func normalizeRoutes() {
-	for k, v := range routes {
+func (rs *routes) normalize() {
+	for k, v := range rs.routes {
 		normalizedKey := normalizeRoute(k)
 
 		if normalizedKey != k {
-			routes[normalizedKey] = v
-			delete(routes, k)
+			rs.routes[normalizedKey] = v
+			delete(rs.routes, k)
 		}
 	}
 }
@@ -127,27 +123,26 @@ func normalizeRoute(route string) string {
 	return route
 }
 
-func matchPath(path string) string {
-	if _, ok := routes[path]; ok {
+func (rs *routes) match(path string) string {
+	if _, ok := rs.routes[path]; ok {
 		return path
 	}
 
-	rs := slices.SortedFunc(maps.Keys(routes), func(a, b string) int {
+	r := slices.SortedFunc(maps.Keys(rs.routes), func(a, b string) int {
 		return len(b) - len(a)
 	})
 
-	for _, route := range rs {
-		if strings.HasPrefix(path + "/", route) {
+	for _, route := range r {
+		if strings.HasPrefix(path+"/", route) {
 			return route
 		}
 	}
 
-	return defaultRoute
+	return rs.defaultRoute
 }
 
-func target(path string) string {
-	route := matchPath(path)
+func (rs *routes) target(path string) string {
+	route := rs.match(path)
 
-	return routes[route][con.loadAndIncr(route)]
+	return rs.routes[route][con.loadAndInc(route, rs)]
 }
-
