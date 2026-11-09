@@ -7,6 +7,7 @@ import (
 
 func main() {
 	routes := setupRoutes()
+	setupHealthCheck(routes)
 
 	http.Handle("/", &requestResponder{routes: routes})
 
@@ -20,4 +21,9 @@ func setupRoutes() *routes {
 	routes.normalize()
 
 	return routes
+}
+
+func setupHealthCheck(rs *routes) {
+	check := healthCheck{rs: rs}
+	check.start()
 }
