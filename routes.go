@@ -141,8 +141,35 @@ func (rs *routes) match(path string) string {
 	return rs.defaultRoute
 }
 
-func (rs *routes) target(path string) string {
+func (rs *routes) target(path string, hc *healthCheck) (string, error) {
 	route := rs.match(path)
 
-	return rs.routes[route][con.loadAndInc(route, rs)]
+	t := rs.routes[route][con.loadAndInc(route, rs)]
+	counter := len(rs.routes[route])
+	base, err := baseUrl(t)
+
+	if err != nil {
+		return "", fmt.Errorf("Some error")
+	}
+
+	for {
+		if hc.instances[base] {
+			break
+		}
+
+		if counter == 1 {
+			return "", fmt.Errorf("No healthy instances")
+		}
+
+		t = rs.routes[route][con.loadAndInc(route, rs)]
+		base, err = baseUrl(t)
+
+		if err != nil {
+			return "", fmt.Errorf("Some error")
+		}
+
+		counter--
+	}
+
+	return t, nil
 }

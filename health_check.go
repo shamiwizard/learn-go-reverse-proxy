@@ -26,21 +26,14 @@ func (hc *healthCheck) setInstances() {
 
 	for _, v := range hc.rs.routes {
 		for _, route := range v {
-			u, err := url.Parse(route)
+			base, err := baseUrl(route)
 
 			if err != nil {
-				fmt.Println("Could not parse the route:", err)
-				continue
+				panic(err)
 			}
 
-			if u.Scheme == "" || u.Host == "" {
-				panic("One of the instances does not have hostname. Place check that instance has correct format")
-			}
-
-			hostname := u.Scheme + "://" + u.Host
-
-			if _, ok := hc.instances[hostname]; !ok {
-				instances[hostname] = true
+			if _, ok := instances[base]; !ok {
+				instances[base] = true
 			}
 		}
 	}
@@ -54,20 +47,31 @@ func (hc *healthCheck) run(path string) {
 	for range tick {
 		response, err := http.Get(healthUrl(path))
 
-		if err != nil {
-			fmt.Println("Instnace", path, "disabled. Error:", err.Error())
-			return
+		if err != nil || response.StatusCode != http.StatusOK {
+			//fmt.Println("Instnace", path, "disabled. Error:", err.Error())
+			hc.instances[path] = false
+			continue
 		}
 
-		if response.StatusCode != http.StatusOK {
-			fmt.Println("Instance", path, "is not working")
-			return
-		}
-
-		fmt.Println("Instance:", path, "are okay")
+		hc.instances[path] = true
+		//fmt.Println("Instance:", path, "are okay")
 	}
 }
 
 func healthUrl(path string) string {
 	return path + "/health"
+}
+
+func baseUrl(route string) (string, error) {
+	u, err := url.Parse(route)
+
+	if err != nil {
+		return "", err
+	}
+
+	if u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("Url does not have Scheme or Host")
+	}
+
+	return u.Scheme + "://" + u.Host, nil
 }

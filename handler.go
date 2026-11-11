@@ -12,7 +12,8 @@ import (
 const ServerAddress = "http://localhost:2020"
 
 type requestResponder struct {
-	routes *routes
+	routes      *routes
+	healthCheck *healthCheck
 }
 
 type flushWriter struct {
@@ -31,7 +32,7 @@ func (fw flushWriter) Write(p []byte) (int, error) {
 }
 
 func (rr *requestResponder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	response, err := handleRequest(r, rr.routes)
+	response, err := handleRequest(r, rr.routes, rr.healthCheck)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
@@ -51,8 +52,14 @@ func (rr *requestResponder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	io.Copy(fw, response.Body)
 }
 
-func handleRequest(r *http.Request, rs *routes) (*http.Response, error) {
-	t := rs.target(r.URL.String())
+func handleRequest(r *http.Request, rs *routes, hc *healthCheck) (*http.Response, error) {
+	t, err := rs.target(r.URL.String(), hc)
+
+	if err != nil {
+		fmt.Println("Error with health check:", err)
+		return nil, err
+	}
+
 	newRequest, err := http.NewRequest(r.Method, fmt.Sprint(t, r.URL.String()), r.Body)
 
 	fmt.Println(newRequest.URL.String())

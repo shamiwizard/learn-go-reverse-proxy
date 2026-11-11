@@ -7,9 +7,9 @@ import (
 
 func main() {
 	routes := setupRoutes()
-	setupHealthCheck(routes)
+	healthCheck := setupHealthCheck(routes)
 
-	http.Handle("/", &requestResponder{routes: routes})
+	http.Handle("/", &requestResponder{routes: routes, healthCheck: healthCheck})
 
 	log.Fatal(http.ListenAndServe(":1010", nil))
 }
@@ -23,7 +23,9 @@ func setupRoutes() *routes {
 	return routes
 }
 
-func setupHealthCheck(rs *routes) {
+func setupHealthCheck(rs *routes) *healthCheck {
 	check := healthCheck{rs: rs}
 	check.start()
+
+	return &check
 }
